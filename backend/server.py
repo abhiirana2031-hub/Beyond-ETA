@@ -17,6 +17,8 @@ from fastapi import WebSocket, WebSocketDisconnect
 import json
 from twilio.rest import Client
 import razorpay
+import cloudinary
+import cloudinary.uploader
 
 # Load environment variables FIRST
 ROOT_DIR = Path(__file__).parent
@@ -589,6 +591,18 @@ async def create_emergency_alert(alert: EmergencyAlert):
                 # Get emergency contact number
                 to_number = TWILIO_TO_DEFAULT or 'whatsapp:+916396941307'
                 
+                # Upload photo to Cloudinary if available
+                media_url = None
+                if alert_dict.get('photo'):
+                    try:
+                        logger.info("Uploading emergency photo to Cloudinary...")
+                        # Cloudinary accepts data:image/...;base64,... perfectly
+                        upload_result = cloudinary.uploader.upload(alert_dict.get('photo'))
+                        media_url = upload_result.get('secure_url')
+                        logger.info(f"Photo uploaded successfully: {media_url}")
+                    except Exception as upload_error:
+                        logger.error(f"Failed to upload photo to Cloudinary: {upload_error}")
+                
                 # Send the emergency alert via WhatsApp service
                 result = whatsapp_service.send_emergency_alert(
                     to_number=to_number,
@@ -597,7 +611,8 @@ async def create_emergency_alert(alert: EmergencyAlert):
                     maps_link=maps_link,
                     additional_info={
                         'details': alert_dict.get('message', 'SOS Alert')
-                    }
+                    },
+                    media_url=media_url
                 )
                 
                 if result['success']:

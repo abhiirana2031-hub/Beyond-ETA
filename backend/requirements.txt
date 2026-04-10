@@ -9,3 +9,4 @@ mediapipe
 numpy
 twilio
 razorpay
+cloudinary

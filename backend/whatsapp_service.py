@@ -112,7 +112,8 @@ class WhatsAppService:
         location: str,
         vehicle_number: str,
         maps_link: str,
-        additional_info: Optional[Dict] = None
+        additional_info: Optional[Dict] = None,
+        media_url: Optional[str] = None
     ) -> Dict:
         """
         Send an emergency/SOS alert via WhatsApp
@@ -145,7 +146,7 @@ class WhatsAppService:
         
         message_body += "\n🆘 *URGENT - IMMEDIATE ASSISTANCE NEEDED!* 🆘"
         
-        return self.send_message(to_number, message_body)
+        return self.send_message(to_number, message_body, media_url)
     
     def send_safety_notification(
         self,
