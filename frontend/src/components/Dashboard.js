@@ -931,13 +931,7 @@ const Dashboard = () => {
                   )}
                   
                   {activeMode === 'breathe' && (
-                    <PremiumOverlay 
-                      isSubscribed={isSubscribed} 
-                      onUpgrade={() => setShowSubscriptionPlans(true)}
-                      featureName="Smart AQI Navigation"
-                    >
-                      <BreatheMode routes={routes} selectedRoute={selectedRoute} setSelectedRoute={setSelectedRoute} userLocation={userLocation} />
-                    </PremiumOverlay>
+                    <BreatheMode routes={routes} selectedRoute={selectedRoute} setSelectedRoute={setSelectedRoute} userLocation={userLocation} />
                   )}
                   
                   {activeMode === 'safety' && (
@@ -950,7 +944,12 @@ const Dashboard = () => {
                     </PremiumOverlay>
                   )}
                   
-                  {activeMode === 'emergency' && <EmergencyMode />}
+                  {activeMode === 'emergency' && (
+                    <EmergencyMode 
+                      isSubscribed={isSubscribed} 
+                      onUpgrade={() => setShowSubscriptionPlans(true)} 
+                    />
+                  )}
                   
                   {activeMode === 'drowsiness' && (
                     <PremiumOverlay 
