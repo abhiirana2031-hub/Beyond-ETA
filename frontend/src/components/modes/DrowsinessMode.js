@@ -284,19 +284,23 @@ const DrowsinessMode = () => {
               active: true
             };
             
-            console.log('📍 Auto-SOS Sending:', sosPayload);
+            console.log('📍 Drowsiness Detected - Alert Display Only (Auto-send DISABLED):', sosPayload);
             
-            // Send to backend
+            // DISABLED: Auto-send to backend has been disabled per user request
+            // Only manual SOS clicks will send messages to WhatsApp
+            
+            // Commented out: Manual user click on SOS button is required
+            /*
             await axios.post(`${API}/emergency/alert`, sosPayload, {
               timeout: 10000,
               headers: { 'Content-Type': 'application/json' }
             });
+            */
             
-            // Automated Multi-Channel Alert: Background notification already processed by backend.
-            console.log('✅ Auto-SOS Multi-Channel Sent Successfully (Direct)');
+            console.log('✅ Drowsiness Alert Displayed - Waiting for manual SOS button click to send message');
             
           } catch (backendError) {
-            console.error('❌ Backend SOS Error:', backendError.message);
+            console.error('⚠️ Error preparing drowsiness alert:', backendError.message);
           }
         });
       }

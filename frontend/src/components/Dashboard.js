@@ -419,14 +419,19 @@ const Dashboard = () => {
       );
     }
     
+    // DISABLED: Automatic emergency vehicle detection
+    // Emergency alerts now only sent when user manually clicks SOS button
+    // Previously: Random 5% chance every 10 seconds
+    /*
     const emergencyCheck = setInterval(() => {
       if (Math.random() < 0.05 && !showSearch) {
         triggerEmergencyAlert();
       }
     }, 10000);
+    */
     
     return () => {
-      clearInterval(emergencyCheck);
+      // clearInterval(emergencyCheck); // Disabled - auto alerts turned off
       if (watchId) navigator.geolocation.clearWatch(watchId);
     };
   }, [loadRoutes, triggerEmergencyAlert, showSearch, searchData]); // Removed redundant dependencies like selectedRoute and navigationStarted

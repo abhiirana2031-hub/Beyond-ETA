@@ -24,6 +24,13 @@ import cloudinary.uploader
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
+# Configure Cloudinary with credentials from environment
+cloudinary.config(
+    cloud_name="ds2olsekw",
+    api_key=os.getenv('CLOUDINARY_API_KEY') or "737452116172272",
+    api_secret=os.getenv('CLOUDINARY_API_SECRET') or "b98LdjyUVBp-yks2sk7C5TCfs9w"
+)
+
 # Initialization and Configuration
 logging.basicConfig(
     level=logging.INFO,
