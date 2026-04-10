@@ -575,6 +575,7 @@ const Dashboard = () => {
             mapboxAccessToken={MAPBOX_TOKEN}
             style={{ width: '100%', height: '100%' }}
             mapStyle={mapStyle}
+            interactiveLayerIds={[]}
           >
             <ScaleControl position="bottom-right" unit="metric" />
             {/* Traffic Layer */}
@@ -599,47 +600,57 @@ const Dashboard = () => {
               </Source>
             )}
 
-            {/* Draw all available routes */}
-            {routes.map(route => {
-              if (!route || !route.coordinates || route.coordinates.length === 0) return null;
-              const isSelected = selectedRoute ? selectedRoute.id === route.id : true;
-              const isNotSelectedButOthersAre = selectedRoute && selectedRoute.id !== route.id;
-              const baseColor = modes.find(m => m.id === activeMode)?.color || '#FFB020';
-              
-              return (
-                <Source
-                  key={`source-${route.id}`}
-                  id={`route-${route.id}`}
-                  type="geojson"
-                  data={{
-                    type: 'Feature',
-                    geometry: {
-                      type: 'LineString',
-                      coordinates: route.coordinates
-                    }
+            {/* Draw all available routes using a unified FeatureCollection */}
+            {routes.length > 0 && (
+              <Source
+                id="all-routes-source"
+                type="geojson"
+                data={{
+                  type: 'FeatureCollection',
+                  features: routes.map(route => {
+                    if (!route || !route.coordinates || !Array.isArray(route.coordinates) || route.coordinates.length < 2) return null;
+                    const isSelected = selectedRoute ? selectedRoute.id === route.id : true;
+                    const isNotSelectedButOthersAre = selectedRoute && selectedRoute.id !== route.id;
+                    const baseColor = modes.find(m => m.id === activeMode)?.color || '#FFB020';
+
+                    return {
+                      type: 'Feature',
+                      properties: {
+                        color: isNotSelectedButOthersAre ? '#71717A' : baseColor,
+                        width: isSelected ? 8 : 4,
+                        opacity: isNotSelectedButOthersAre ? 0.3 : (selectedRoute ? 1 : 0.6)
+                      },
+                      geometry: {
+                        type: 'LineString',
+                        coordinates: route.coordinates
+                      }
+                    };
+                  }).filter(Boolean)
+                }}
+              >
+                <Layer
+                  id="all-routes-layer"
+                  type="line"
+                  layout={{ 'line-join': 'round', 'line-cap': 'round' }}
+                  paint={{
+                    'line-color': ['get', 'color'],
+                    'line-width': ['get', 'width'],
+                    'line-opacity': ['get', 'opacity']
                   }}
-                >
-                  <Layer
-                    id={`route-line-${route.id}`}
-                    type="line"
-                    layout={{ 'line-join': 'round', 'line-cap': 'round' }}
-                    paint={{
-                      'line-color': isNotSelectedButOthersAre ? '#71717A' : baseColor,
-                      'line-width': isSelected ? 8 : 4,
-                      'line-opacity': isNotSelectedButOthersAre ? 0.3 : (selectedRoute ? 1 : 0.6)
-                    }}
-                  />
-                </Source>
-              );
-            })}
+                />
+              </Source>
+            )}
 
             {/* Start and End markers */}
             {(selectedRoute || routes.length > 0) && (
               (() => {
                 const markerRoute = selectedRoute || routes[0];
-                if (!markerRoute || !markerRoute.coordinates || markerRoute.coordinates.length === 0) return null;
+                if (!markerRoute || !markerRoute.coordinates || !Array.isArray(markerRoute.coordinates) || markerRoute.coordinates.length < 2) return null;
                 const firstCoord = markerRoute.coordinates[0];
                 const lastCoord = markerRoute.coordinates[markerRoute.coordinates.length - 1];
+                
+                if (!firstCoord || firstCoord.length < 2 || !lastCoord || lastCoord.length < 2) return null;
+                
                 return (
                   <React.Fragment key="route-markers">
                     <Marker longitude={firstCoord[0]} latitude={firstCoord[1]} anchor="bottom">
