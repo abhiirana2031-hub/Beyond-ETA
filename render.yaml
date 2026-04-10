@@ -3,6 +3,7 @@ services:
   - type: web
     name: beyond-eta-backend
     env: python
+    plan: free
     region: oregon
     rootDir: backend/
     buildCommand: "pip install -r requirements.txt"
