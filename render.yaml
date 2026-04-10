@@ -23,7 +23,6 @@ services:
   - type: web
     name: beyond-eta-frontend
     env: static
-    region: oregon # Same region as backend
     rootDir: frontend/
     buildCommand: "npm install && npm run build"
     staticPublishPath: ./build
