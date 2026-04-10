@@ -13,12 +13,14 @@ import random
 import math
 import httpx
 import asyncio
-from ollama_service import ollama_service
-from vision_service import vision_service
 from fastapi import WebSocket, WebSocketDisconnect
 import json
 from twilio.rest import Client
 import razorpay
+
+# Load environment variables FIRST
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env')
 
 # Initialization and Configuration
 logging.basicConfig(
@@ -26,6 +28,11 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Import service modules AFTER environment is loaded
+from ollama_service import ollama_service
+from vision_service import vision_service
+from whatsapp_service import whatsapp_service
 
 app = FastAPI(title="Beyond ETA API")
 api_router = APIRouter(prefix="/api")
@@ -42,9 +49,6 @@ async def root():
         },
         "frontend_url": "http://localhost:3001"
     }
-
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB Connection Configuration (optimized for MongoDB Atlas)
 mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
@@ -160,6 +164,54 @@ class PaymentVerificationRequest(BaseModel):
     razorpay_payment_id: str
     razorpay_signature: str
     plan_type: str
+
+
+# WhatsApp Message Models
+class WhatsAppMessageRequest(BaseModel):
+    """Request model for sending a simple WhatsApp message"""
+    to_number: str
+    message: str
+    media_url: Optional[str] = None
+
+class WhatsAppMessageResponse(BaseModel):
+    """Response model for WhatsApp message send"""
+    success: bool
+    message_sid: Optional[str] = None
+    error: Optional[str] = None
+    timestamp: str
+
+class WhatsAppEmergencyRequest(BaseModel):
+    """Request model for emergency alerts"""
+    to_number: str
+    location: str
+    vehicle_number: str
+    maps_link: str
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    details: Optional[str] = None
+
+class WhatsAppNotificationRequest(BaseModel):
+    """Request model for safety notifications"""
+    to_number: str
+    notification_type: str  # pothole, unsafe_area, route_warning, drowsiness, route_update
+    location: Optional[str] = None
+    severity: Optional[str] = None
+    incident_count: Optional[int] = None
+    warning: Optional[str] = None
+    alternative: Optional[str] = None
+    message: Optional[str] = None
+
+class WhatsAppBulkRequest(BaseModel):
+    """Request model for bulk messages"""
+    recipients: List[str]
+    message: str
+    on_error: str = "continue"  # continue or stop
+
+class WhatsAppTemplateRequest(BaseModel):
+    """Request model for template messages"""
+    to_number: str
+    content_sid: str
+    content_variables: Dict[str, str]
 
 
 class AnalysisRequest(BaseModel):
@@ -506,7 +558,10 @@ async def create_emergency_alert(alert: EmergencyAlert):
     alert_dict = alert.model_dump()
     
     # Automated Alert Simulation Logging
-    if alert_dict.get('type') == 'sos-women-safety' or alert_dict.get('type') == 'drowsiness-emergency':
+    alert_type = str(alert_dict.get('type', '')).lower()
+    emergency_types = ['sos-women-safety', 'drowsiness-emergency', 'ambulance', 'sos', 'manual-sos', 'advanced-sos']
+    
+    if alert_type in emergency_types:
         # Simulate background emergency handshake
         await asyncio.sleep(1.0)
         
@@ -517,37 +572,44 @@ async def create_emergency_alert(alert: EmergencyAlert):
         logger.info(f"   Vehicle: {car_info}")
         logger.info(f"   Photo Attached: {has_photo}")
         
-        # Trigger REAL Twilio Dispatch if configured
-        if twilio_client:
+        # Trigger REAL WhatsApp Dispatch using WhatsApp Service
+        if whatsapp_service.is_configured:
             try:
-                # Build the message body
-                maps_link = f"https://maps.google.com/?q={alert_dict['location']['lat']},{alert_dict['location']['lng']}"
+                # Build the location and maps link
+                location_info = alert_dict.get('location', {})
+                if isinstance(location_info, dict):
+                    lat = location_info.get('lat', 0)
+                    lng = location_info.get('lng', 0)
+                    maps_link = f"https://maps.google.com/?q={lat},{lng}"
+                    location_text = f"({lat}, {lng})"
+                else:
+                    maps_link = f"https://maps.google.com/?q={location_info}"
+                    location_text = str(location_info)
                 
-                # Format a highly-urgent message for the helpline/contacts
-                sos_body = (
-                    f"🚨 *BEYOND-ETA EMERGENCY ALERT*\n\n"
-                    f"Type: *{alert_dict.get('type', 'Unknown').upper()}*\n"
-                    f"A user is requesting immediate help!\n"
-                    f"📍 *Location:* {maps_link}\n"
-                    f"🚗 *Vehicle Number:* {car_info}\n"
-                    f"⏰ *Time:* {datetime.now().strftime('%H:%M:%S')}\n\n"
-                    f"🆘 *URGENT - Please provide immediate assistance!*"
-                )
-                
-                # Send the message
+                # Get emergency contact number
                 to_number = TWILIO_TO_DEFAULT or 'whatsapp:+916396941307'
                 
-                message = twilio_client.messages.create(
-                    from_=TWILIO_FROM or 'whatsapp:+14155238886',
-                    body=sos_body,
-                    to=to_number
+                # Send the emergency alert via WhatsApp service
+                result = whatsapp_service.send_emergency_alert(
+                    to_number=to_number,
+                    location=location_text,
+                    vehicle_number=car_info,
+                    maps_link=maps_link,
+                    additional_info={
+                        'details': alert_dict.get('message', 'SOS Alert')
+                    }
                 )
                 
-                logger.info(f"✅ Twilio Automated Alert Sent: {message.sid}")
+                if result['success']:
+                    logger.info(f"✅ WhatsApp Emergency Alert Sent: {result['message_sid']}")
+                else:
+                    logger.error(f"❌ WhatsApp Emergency Alert Failed: {result['error']}")
             except Exception as e:
-                logger.error(f"❌ Twilio Automated Alert Failed: {e}")
+                logger.error(f"❌ WhatsApp Emergency Alert Failed with exception: {e}")
+                import traceback
+                traceback.print_exc()
         else:
-            logger.info(f"✅ ALERT DELIVERED BY AUTOMATED SYSTEM (Logging Only - Twilio not configured)")
+            logger.info(f"✅ ALERT LOGGED (WhatsApp service not configured)")
     
     alert_dict['timestamp'] = alert_dict['timestamp'].isoformat()
     
@@ -560,7 +622,83 @@ async def create_emergency_alert(alert: EmergencyAlert):
     
     return alert
 
+# ============================================
+# WHATSAPP AUTOMATION ENDPOINTS
+# ============================================
+
+@api_router.post("/whatsapp/send", response_model=WhatsAppMessageResponse)
+async def send_whatsapp_message(request: WhatsAppMessageRequest):
+    """Send a simple WhatsApp message"""
+    result = whatsapp_service.send_message(
+        to_number=request.to_number,
+        body=request.message,
+        media_url=request.media_url
+    )
+    return WhatsAppMessageResponse(**result)
+
+@api_router.post("/whatsapp/emergency", response_model=WhatsAppMessageResponse)
+async def send_emergency_whatsapp(request: WhatsAppEmergencyRequest):
+    """Send an emergency alert via WhatsApp"""
+    additional_info = {
+        "name": request.name,
+        "phone": request.phone,
+        "details": request.details
+    }
+    result = whatsapp_service.send_emergency_alert(
+        to_number=request.to_number,
+        location=request.location,
+        vehicle_number=request.vehicle_number,
+        maps_link=request.maps_link,
+        additional_info=additional_info
+    )
+    return WhatsAppMessageResponse(**result)
+
+@api_router.post("/whatsapp/notification", response_model=WhatsAppMessageResponse)
+async def send_safety_notification(request: WhatsAppNotificationRequest):
+    """Send a safety notification via WhatsApp"""
+    details = {
+        "location": request.location,
+        "severity": request.severity,
+        "incident_count": request.incident_count,
+        "warning": request.warning,
+        "alternative": request.alternative,
+        "message": request.message,
+        "route_name": request.location  # Using location as route name if needed
+    }
+    result = whatsapp_service.send_safety_notification(
+        to_number=request.to_number,
+        notification_type=request.notification_type,
+        details=details
+    )
+    return WhatsAppMessageResponse(**result)
+
+@api_router.post("/whatsapp/bulk")
+async def send_bulk_whatsapp(request: WhatsAppBulkRequest):
+    """Send bulk WhatsApp messages to multiple recipients"""
+    result = whatsapp_service.send_bulk_messages(
+        recipients=request.recipients,
+        message_body=request.message,
+        on_error=request.on_error
+    )
+    return {
+        "success": result["failed"] == 0,
+        "summary": result,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+@api_router.post("/whatsapp/template", response_model=WhatsAppMessageResponse)
+async def send_template_whatsapp(request: WhatsAppTemplateRequest):
+    """Send a pre-approved Twilio template message via WhatsApp"""
+    result = whatsapp_service.send_template_message(
+        to_number=request.to_number,
+        content_sid=request.content_sid,
+        content_variables=request.content_variables
+    )
+    return WhatsAppMessageResponse(**result)
+
+# ============================================
 # RAZORPAY SUBSCRIPTION ENDPOINTS
+# ============================================
 @api_router.post("/subscription/create-order")
 async def create_subscription_order(request: SubscriptionOrderRequest):
     if not razorpay_client:
