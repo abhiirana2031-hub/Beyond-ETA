@@ -15,10 +15,11 @@ import {
   CarProfile
 } from '@phosphor-icons/react';
 import EmergencyContactsModal from '../EmergencyContactsModal';
+import { PremiumOverlay } from '../ui/Subscription';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
-const EMERGENCY_PHONE = '6396941307'; // Women's safety emergency contact
+const EMERGENCY_PHONE = '6396941307'; 
 
 // Simple Progress Bar Component
 const ProgressBar = ({ value = 0, className = '' }) => (
@@ -36,7 +37,7 @@ const getRouteStatusMessage = (score) => {
   return '⚠️ Caution Advised - Consider alternative route';
 };
 
-const WomenSafetyMode = ({ routes, selectedRoute, setSelectedRoute }) => {
+const WomenSafetyMode = ({ routes, selectedRoute, setSelectedRoute, isSubscribed, onUpgrade }) => {
   const [safetyMetrics, setSafetyMetrics] = useState(null);
   const [sosActive, setSosActive] = useState(false);
   const [showContactsModal, setShowContactsModal] = useState(false);
@@ -48,14 +49,12 @@ const WomenSafetyMode = ({ routes, selectedRoute, setSelectedRoute }) => {
   const [carNumber, setCarNumber] = useState(localStorage.getItem('userCarNumber') || '');
   const [userPhoto, setUserPhoto] = useState(localStorage.getItem('userPhoto') || null);
   const [isPoliceAlerted, setIsPoliceAlerted] = useState(false);
-  const [dispatchStep, setDispatchStep] = useState(0); // 0: Idle, 1: Gathering, 2: Encrypting, 3: Transmitting, 4: Done
+  const [dispatchStep, setDispatchStep] = useState(0); 
 
-  // Generate Google Maps Link
   const generateMapsLink = (lat, lng) => {
     return `https://maps.google.com/?q=${lat},${lng}`;
   };
 
-  // Generate WhatsApp Share Link
   const generateWhatsAppLink = (phoneNumber, message, mapsLink, vNumber) => {
     const vehicleInfo = vNumber ? `🚗 VEHICLE: ${vNumber}\n` : '';
     const fullMessage = `🚨 WOMEN'S SAFETY EMERGENCY ALERT\n\n${message}\n${vehicleInfo}\n📍 LIVE LOCATION:\n${mapsLink}\n\n⏰ Time: ${new Date().toLocaleString()}\n\n🆘 URGENT - PLEASE HELP!`;
@@ -63,7 +62,6 @@ const WomenSafetyMode = ({ routes, selectedRoute, setSelectedRoute }) => {
     return `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
   };
 
-  // Copy location to clipboard
   const copyLocationToClipboard = () => {
     if (liveLocation) {
       const mapsLink = generateMapsLink(liveLocation.lat, liveLocation.lng);
@@ -86,7 +84,6 @@ const WomenSafetyMode = ({ routes, selectedRoute, setSelectedRoute }) => {
     loadSafetyMetrics();
     const interval = setInterval(loadSafetyMetrics, 5000);
 
-    // Enable geolocation with high accuracy
     if (navigator.geolocation) {
       const watchId = navigator.geolocation.watchPosition(
         (position) => {
@@ -124,17 +121,15 @@ const WomenSafetyMode = ({ routes, selectedRoute, setSelectedRoute }) => {
 
     setSosActive(true);
     setShowSosPanel(true);
-    setDispatchStep(1); // Gathering Data
+    setDispatchStep(1); 
 
     const mapsLink = generateMapsLink(liveLocation.lat, liveLocation.lng);
     const emergencyMessage = `🚨 HELP NEEDED - I am in an emergency situation!\n\nI am requesting immediate assistance.\n\nAccuracy: ±${Math.round(liveLocation.accuracy)}m`;
     setSosMessage(emergencyMessage);
 
-    // Sequence through dispatch steps for realism/feedback
-    setTimeout(() => setDispatchStep(2), 800); // Encrypting Identity
-    setTimeout(() => setDispatchStep(3), 1600); // Transmitting to Helpline
+    setTimeout(() => setDispatchStep(2), 800); 
+    setTimeout(() => setDispatchStep(3), 1600);
 
-    // Add to SOS history
     const newAlert = {
       timestamp: new Date().toLocaleString(),
       location: {lat: liveLocation.lat, lng: liveLocation.lng},
@@ -143,7 +138,6 @@ const WomenSafetyMode = ({ routes, selectedRoute, setSelectedRoute }) => {
     setSosHistory([newAlert, ...sosHistory.slice(0, 4)]);
 
     try {
-      // Send to backend
       const sosPayload = {
         type: 'sos-women-safety',
         location: {
@@ -152,7 +146,7 @@ const WomenSafetyMode = ({ routes, selectedRoute, setSelectedRoute }) => {
         },
         message: emergencyMessage,
         car_number: carNumber,
-        photo: userPhoto,  // Send the actual Base64 photo
+        photo: userPhoto,
         active: true
       };
       
@@ -166,15 +160,13 @@ const WomenSafetyMode = ({ routes, selectedRoute, setSelectedRoute }) => {
         headers: { 'Content-Type': 'application/json' }
       });
       
-      setDispatchStep(4); // Fully Dispatched
+      setDispatchStep(4); 
       console.log('✅ SOS Alert Sent Successfully:', response.data);
       
-      // Trigger vibrations (alert pattern)
       if (navigator.vibrate) {
         navigator.vibrate([300, 100, 300, 100, 300, 100, 500]);
       }
 
-      // Play alert sound
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
@@ -187,29 +179,19 @@ const WomenSafetyMode = ({ routes, selectedRoute, setSelectedRoute }) => {
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.5);
 
-      // Simulated Automated Success: 
-      // 100% Direct - No window.open needed now.
       console.log('✅ Automated Alert Dispatched Successfully');
 
-      // Also send to emergency contacts from localStorage
       const contacts = JSON.parse(localStorage.getItem('emergencyContacts') || '[]');
       if (contacts.length > 0) {
         console.log(`📱 SOS Alert sent to ${contacts.length} emergency contacts`);
-        contacts.forEach(contact => {
-          console.log(`✓ Alert for: ${contact.name} (${contact.phone})`);
-        });
       }
 
     } catch (error) {
       setDispatchStep(0);
       console.error('❌ Error sending SOS:', error);
-      
-      // We will NO LONGER window.open(whatsAppLink) automatically ever.
-      // The user must click the manual backup button if they see a failure.
       setSosMessage("🚨 Dispatch Handshake Busy: Please use the Manual Backup button below.");
     }
 
-    // Keep button in active state for 3 seconds
     setTimeout(() => {
       setSosActive(false);
       setIsPoliceAlerted(false);
@@ -242,132 +224,9 @@ const WomenSafetyMode = ({ routes, selectedRoute, setSelectedRoute }) => {
         onClose={() => setShowContactsModal(false)}
       />
 
-      {/* Location Status */}
-      <div className="bg-white/5 border border-white/10 rounded-sm p-3">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-[#A1A1AA] mb-2">
-          <MapPin size={14} weight="fill" className="text-[#D500F9]" />
-          LIVE LOCATION TRACKING
-        </div>
-        {liveLocation ? (
-          <div className="space-y-2">
-            <div className="text-[12px] text-white/80 font-mono bg-black/20 p-2 rounded">
-              {liveLocation.lat.toFixed(6)}, {liveLocation.lng.toFixed(6)}
-            </div>
-            <div className="text-[9px] text-white/60">Accuracy: ±{Math.round(liveLocation.accuracy)}m</div>
-            <div className="flex gap-2">
-              <button
-                onClick={copyLocationToClipboard}
-                className="flex-1 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded text-[10px] font-bold text-white transition-all flex items-center justify-center gap-1"
-              >
-                <Copy size={12} weight="fill" />
-                {locationCopied ? '✓ COPIED' : 'COPY'}
-              </button>
-              <a
-                href={generateMapsLink(liveLocation.lat, liveLocation.lng)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 py-1.5 bg-[#1E88E5]/20 hover:bg-[#1E88E5]/40 border border-[#1E88E5]/50 rounded text-[10px] font-bold text-[#1E88E5] transition-all flex items-center justify-center gap-1"
-              >
-                <MapTrifold size={12} weight="fill" />
-                OPEN MAP
-              </a>
-            </div>
-          </div>
-        ) : (
-          <div className="text-[11px] text-[#FFB020] flex items-center gap-2">
-            <div className="w-2 h-2 bg-[#FFB020] rounded-full animate-pulse"></div>
-            Activating GPS tracking...
-          </div>
-        )}
-      </div>
-
-      {/* Vehicle & Identity Section */}
-      <div className="bg-white/5 border border-white/10 rounded-sm p-4 space-y-4 shadow-inner">
-        <div className="flex items-center gap-2 text-[10px] font-black text-[#D500F9] uppercase tracking-[0.2em] mb-1">
-          <IdentificationCard size={14} weight="fill" />
-          Vehicle & Identity Profile
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="relative group flex-none">
-            <div className="w-16 h-16 rounded-sm bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center transition-all group-hover:border-[#D500F9]/50">
-              {userPhoto ? (
-                <img src={userPhoto} alt="User" className="w-full h-full object-cover" />
-              ) : (
-                <Camera size={24} className="text-white/20" />
-              )}
-            </div>
-            <label className="absolute -bottom-1 -right-1 bg-[#D500F9] p-1.5 rounded-sm cursor-pointer hover:bg-white hover:text-black transition-all shadow-lg active:scale-90">
-              <Camera size={12} weight="bold" />
-              <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
-            </label>
-          </div>
-
-          <div className="flex-1 space-y-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-[8px] font-black text-[#71717A] uppercase tracking-wider">Vehicle Number</label>
-              <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-sm px-3 h-10 transition-all focus-within:border-[#D500F9]/50 group">
-                <CarProfile size={16} className="text-[#A1A1AA] group-focus-within:text-[#D500F9]" />
-                <input 
-                  type="text"
-                  placeholder="E.G. KA 01 AB 1234"
-                  value={carNumber}
-                  onChange={(e) => handleCarNumberChange(e.target.value)}
-                  className="bg-transparent border-none outline-none text-white text-xs font-bold w-full uppercase placeholder:text-white/10 tracking-widest"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <p className="text-[8px] text-[#71717A] italic opacity-80">* This info is shared only with Highway Helpline during emergencies</p>
-      </div>
-
-      {/* Safety Metrics Section */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <ShieldCheck size={20} weight="bold" className="text-[#D500F9]" />    
-          <h3 className="text-sm font-bold heading-font uppercase">Route Safety Analysis</h3>
-          <div
-            className="ml-auto text-xl font-black telemetry-font px-3 py-1 rounded"
-            style={{ 
-              color: safetyMetrics?.overall_score > 80 ? '#00E676' : '#FFB020',
-              backgroundColor: safetyMetrics?.overall_score > 80 ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 176, 32, 0.1)'
-            }}
-          >
-            {safetyMetrics?.overall_score || 0}%
-          </div>
-        </div>
-
-        {safetyMetrics && (
-          <div className="bg-white/5 p-4 border border-white/5 rounded-sm space-y-4">
-            <div>
-              <div className="flex items-center justify-between text-[10px] mb-1.5 font-bold uppercase tracking-wider">
-                <span className="text-[#A1A1AA]">🔆 Street Lighting</span>
-                <span className="text-white">{safetyMetrics.street_lighting}%</span>
-              </div>
-              <ProgressBar value={safetyMetrics.street_lighting} />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between text-[10px] mb-1.5 font-bold uppercase tracking-wider">
-                <span className="text-[#A1A1AA]">🚗 Vehicle Density</span>
-                <span className="text-white">{safetyMetrics.vehicle_density}%</span>
-              </div>
-              <ProgressBar value={safetyMetrics.vehicle_density} />
-            </div>
-
-            <div className="pt-2 border-t border-white/5">
-              <div className="text-[10px] font-black text-[#D500F9] uppercase tracking-widest mb-2">🛣️ Route Assessment</div>
-              <div className="text-[11px] text-white/90 leading-tight font-semibold">       
-                {getRouteStatusMessage(safetyMetrics.overall_score)}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* MAIN SOS BUTTON - Large & Prominent */}
-      <div className="space-y-3">
+      {/* FREEMIUM SOS BUTTON BLOCK (ALMOST AT TOP) */}
+      <div className="space-y-3 relative">
+        <div className="absolute -top-3 -right-2 px-2 py-0.5 bg-[#FF3366]/20 text-[#FF3366] text-[8px] font-black uppercase tracking-widest border border-[#FF3366]/30 rounded-sm z-10">Free Lifeline</div>
         <button
           data-testid="sos-button"
           onClick={handleSOS}
@@ -399,7 +258,6 @@ const WomenSafetyMode = ({ routes, selectedRoute, setSelectedRoute }) => {
               🚨 DIRECT DISPATCH INITIATED
             </div>
             
-            {/* Dispatch Steps Visualization */}
             <div className="bg-black/40 border border-white/10 rounded p-2 space-y-2">
               <div className={`flex items-center gap-2 text-[9px] font-bold ${dispatchStep >= 1 ? 'text-[#00E676]' : 'text-white/30'}`}>
                 {dispatchStep >= 1 ? '✓' : '○'} 📍 GPS LOCATION LOCKED
@@ -459,6 +317,139 @@ const WomenSafetyMode = ({ routes, selectedRoute, setSelectedRoute }) => {
           Manage Emergency Contacts
         </button>
       </div>
+
+      {/* ADVANCED FEATURES WRAPPED IN PREMIUM VAULT */}
+      <PremiumOverlay 
+        isSubscribed={isSubscribed} 
+        onUpgrade={onUpgrade}
+        featureName="Women's Safety Premium Vault"
+      >
+        <div className="space-y-6">
+          {/* Location Status */}
+          <div className="bg-white/5 border border-white/10 rounded-sm p-3">
+            <div className="flex items-center gap-2 text-[10px] font-bold text-[#A1A1AA] mb-2">
+              <MapPin size={14} weight="fill" className="text-[#D500F9]" />
+              LIVE LOCATION TRACKING
+            </div>
+            {liveLocation ? (
+              <div className="space-y-2">
+                <div className="text-[12px] text-white/80 font-mono bg-black/20 p-2 rounded">
+                  {liveLocation.lat.toFixed(6)}, {liveLocation.lng.toFixed(6)}
+                </div>
+                <div className="text-[9px] text-white/60">Accuracy: ±{Math.round(liveLocation.accuracy)}m</div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={copyLocationToClipboard}
+                    className="flex-1 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded text-[10px] font-bold text-white transition-all flex items-center justify-center gap-1"
+                  >
+                    <Copy size={12} weight="fill" />
+                    {locationCopied ? '✓ COPIED' : 'COPY'}
+                  </button>
+                  <a
+                    href={generateMapsLink(liveLocation.lat, liveLocation.lng)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 py-1.5 bg-[#1E88E5]/20 hover:bg-[#1E88E5]/40 border border-[#1E88E5]/50 rounded text-[10px] font-bold text-[#1E88E5] transition-all flex items-center justify-center gap-1"
+                  >
+                    <MapTrifold size={12} weight="fill" />
+                    OPEN MAP
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="text-[11px] text-[#FFB020] flex items-center gap-2">
+                <div className="w-2 h-2 bg-[#FFB020] rounded-full animate-pulse"></div>
+                Activating GPS tracking...
+              </div>
+            )}
+          </div>
+
+          {/* Vehicle & Identity Section */}
+          <div className="bg-white/5 border border-white/10 rounded-sm p-4 space-y-4 shadow-inner">
+            <div className="flex items-center gap-2 text-[10px] font-black text-[#D500F9] uppercase tracking-[0.2em] mb-1">
+              <IdentificationCard size={14} weight="fill" />
+              Vehicle & Identity Profile
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="relative group flex-none">
+                <div className="w-16 h-16 rounded-sm bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center transition-all group-hover:border-[#D500F9]/50">
+                  {userPhoto ? (
+                    <img src={userPhoto} alt="User" className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera size={24} className="text-white/20" />
+                  )}
+                </div>
+                <label className="absolute -bottom-1 -right-1 bg-[#D500F9] p-1.5 rounded-sm cursor-pointer hover:bg-white hover:text-black transition-all shadow-lg active:scale-90">
+                  <Camera size={12} weight="bold" />
+                  <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+                </label>
+              </div>
+
+              <div className="flex-1 space-y-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[8px] font-black text-[#71717A] uppercase tracking-wider">Vehicle Number</label>
+                  <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-sm px-3 h-10 transition-all focus-within:border-[#D500F9]/50 group">
+                    <CarProfile size={16} className="text-[#A1A1AA] group-focus-within:text-[#D500F9]" />
+                    <input 
+                      type="text"
+                      placeholder="E.G. KA 01 AB 1234"
+                      value={carNumber}
+                      onChange={(e) => handleCarNumberChange(e.target.value)}
+                      className="bg-transparent border-none outline-none text-white text-xs font-bold w-full uppercase placeholder:text-white/10 tracking-widest"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p className="text-[8px] text-[#71717A] italic opacity-80">* This info is shared only with Highway Helpline during emergencies</p>
+          </div>
+
+          {/* Safety Metrics Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <ShieldCheck size={20} weight="bold" className="text-[#D500F9]" />    
+              <h3 className="text-sm font-bold heading-font uppercase">Route Safety Analysis</h3>
+              <div
+                className="ml-auto text-xl font-black telemetry-font px-3 py-1 rounded"
+                style={{ 
+                  color: safetyMetrics?.overall_score > 80 ? '#00E676' : '#FFB020',
+                  backgroundColor: safetyMetrics?.overall_score > 80 ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 176, 32, 0.1)'
+                }}
+              >
+                {safetyMetrics?.overall_score || 0}%
+              </div>
+            </div>
+
+            {safetyMetrics && (
+              <div className="bg-white/5 p-4 border border-white/5 rounded-sm space-y-4">
+                <div>
+                  <div className="flex items-center justify-between text-[10px] mb-1.5 font-bold uppercase tracking-wider">
+                    <span className="text-[#A1A1AA]">🔆 Street Lighting</span>
+                    <span className="text-white">{safetyMetrics.street_lighting}%</span>
+                  </div>
+                  <ProgressBar value={safetyMetrics.street_lighting} />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between text-[10px] mb-1.5 font-bold uppercase tracking-wider">
+                    <span className="text-[#A1A1AA]">🚗 Vehicle Density</span>
+                    <span className="text-white">{safetyMetrics.vehicle_density}%</span>
+                  </div>
+                  <ProgressBar value={safetyMetrics.vehicle_density} />
+                </div>
+
+                <div className="pt-2 border-t border-white/5">
+                  <div className="text-[10px] font-black text-[#D500F9] uppercase tracking-widest mb-2">🛣️ Route Assessment</div>
+                  <div className="text-[11px] text-white/90 leading-tight font-semibold">       
+                    {getRouteStatusMessage(safetyMetrics.overall_score)}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </PremiumOverlay>
 
       {/* SOS History */}
       {sosHistory.length > 0 && (

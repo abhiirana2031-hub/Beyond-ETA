@@ -935,13 +935,13 @@ const Dashboard = () => {
                   )}
                   
                   {activeMode === 'safety' && (
-                    <PremiumOverlay 
-                      isSubscribed={isSubscribed} 
+                    <WomenSafetyMode 
+                      routes={routes} 
+                      selectedRoute={selectedRoute} 
+                      setSelectedRoute={setSelectedRoute} 
+                      isSubscribed={isSubscribed}
                       onUpgrade={() => setShowSubscriptionPlans(true)}
-                      featureName="Women's Safety Vault"
-                    >
-                      <WomenSafetyMode routes={routes} selectedRoute={selectedRoute} setSelectedRoute={setSelectedRoute} />
-                    </PremiumOverlay>
+                    />
                   )}
                   
                   {activeMode === 'emergency' && (
