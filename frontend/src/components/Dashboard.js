@@ -861,7 +861,7 @@ const Dashboard = () => {
                   </div>
                   <div className="space-y-2">
                     {routes.map((route, idx) => {
-                      const isLocked = idx === 2 && activeMode !== 'safe_route';
+                      const isLocked = idx === 2 && !isSubscribed;
 
                       if (isLocked) {
                         return (
