@@ -50,11 +50,12 @@ const DrowsinessMode = () => {
   // WebSocket Connection Logic - Direct Connection
   useEffect(() => {
     const backendHost = BACKEND_URL.replace('http://', '').replace('https://', '');
-    const wsUrl = `ws://${backendHost}/api/ws/drowsiness`;
+    const wsUrl = `ws://${backendHost}/api/vision/ws/drowsiness`;
     
     let socket = null;
     let reconnectCount = 0;
-    const maxReconnectAttempts = 5;
+    const heartbeatInterval = 25000; // 25 seconds for Render stability
+    let heartbeatTimer = null;
     
     const connectWS = () => {
       try {
@@ -62,10 +63,17 @@ const DrowsinessMode = () => {
         socket = new WebSocket(wsUrl);
         
         socket.onopen = () => {
-          console.log('✅ Direct WebSocket Connected');
+          console.log('✅ AI Vision WebSocket Connected');
           setWsConnected(true);
           setModelsLoaded(true);
           reconnectCount = 0;
+          
+          // Start Heartbeat
+          heartbeatTimer = setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({ type: 'ping' }));
+            }
+          }, heartbeatInterval);
         };
         
         socket.onmessage = (event) => {
@@ -79,14 +87,11 @@ const DrowsinessMode = () => {
         
         socket.onclose = () => {
           setWsConnected(false);
-          console.log(`⚠️ WebSocket closed. Reconnect attempts: ${reconnectCount + 1}/${maxReconnectAttempts}`);
+          if (heartbeatTimer) clearInterval(heartbeatTimer);
           
-          if (reconnectCount < maxReconnectAttempts) {
-            reconnectCount++;
-            setTimeout(connectWS, 1000); // Try reconnect every 1 second
-          } else {
-            console.error('❌ Max reconnection attempts reached');
-          }
+          console.log(`⚠️ Connection lost. Retrying... (Attempt ${reconnectCount + 1})`);
+          reconnectCount++;
+          setTimeout(connectWS, Math.min(5000, 1000 * reconnectCount)); // Exponential backoff cap at 5s
         };
         
         socket.onerror = (error) => {

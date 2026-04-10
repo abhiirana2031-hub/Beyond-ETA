@@ -419,9 +419,8 @@ const Dashboard = () => {
       );
     }
     
-    // DISABLED: Automatic emergency vehicle detection
+    // Automatic emergency vehicle detection DISABLED
     // Emergency alerts now only sent when user manually clicks SOS button
-    // Previously: Random 5% chance every 10 seconds
     /*
     const emergencyCheck = setInterval(() => {
       if (Math.random() < 0.05 && !showSearch) {
