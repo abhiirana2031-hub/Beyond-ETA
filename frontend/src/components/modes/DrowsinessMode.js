@@ -525,7 +525,7 @@ const DrowsinessMode = () => {
             <div className="bg-white/10 rounded-lg p-4 mb-6 border border-white/20">
               <p className="text-white text-center font-bold mb-2 uppercase tracking-widest">Drowsiness Signal Detected</p>
               <div className="flex flex-col items-center gap-1">
-                <p className="text-white/90 text-[10px]">LOW ALERTNESS (<60%): <span className="text-white font-bold">{realTimeData.lowAlertnessDuration?.toFixed(1)}s</span></p>
+                <p className="text-white/90 text-[10px]">LOW ALERTNESS (&lt;60%): <span className="text-white font-bold">{realTimeData.lowAlertnessDuration?.toFixed(1)}s</span></p>
                 <ProgressBar value={realTimeData.lowAlertnessDuration * 33.3} className="h-1.5 w-32 bg-white/20" />
               </div>
             </div>
