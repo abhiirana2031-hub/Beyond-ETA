@@ -24,6 +24,7 @@ import DrowsinessMode from './modes/DrowsinessMode';
 import SafeRouteEngine from './modes/SafeRouteEngine';
 import SearchPanel from './SearchPanel';
 import { PremiumOverlay, SubscriptionPlans } from './ui/Subscription';
+import PremiumSuccessModal from './ui/PremiumSuccessModal';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
@@ -106,6 +107,8 @@ const Dashboard = () => {
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [fatigueScore, setFatigueScore] = useState(15);
   const [aqiLevel, setAqiLevel] = useState(0);
+  const [showPremiumSuccess, setShowPremiumSuccess] = useState(false);
+  const userName = localStorage.getItem('userName') || "Pro Driver";
   const mapRef = useRef();
 
   // CALCULATE REAL DISTANCE/TIME LEFT
@@ -343,7 +346,11 @@ const Dashboard = () => {
             if (verifyRes.data.status === 'success') {
               setIsSubscribed(true);
               setShowSubscriptionPlans(false);
-              alert("🚀 Welcome to Beyond ETA Pro! All premium features unlocked.");
+              setShowPremiumSuccess(true);
+              
+              setTimeout(() => {
+                 setShowPremiumSuccess(false);
+              }, 6000);
             }
           } catch (err) {
             alert("Payment verification failed. Please contact support.");
@@ -1045,6 +1052,13 @@ const Dashboard = () => {
         onSelectPlan={handleSelectPlan}
         loading={subscriptionLoading}
       />
+      
+      {showPremiumSuccess && (
+        <PremiumSuccessModal 
+          userName={userName} 
+          onClose={() => setShowPremiumSuccess(false)} 
+        />
+      )}
     </div>
   </div>
 );
