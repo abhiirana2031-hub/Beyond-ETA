@@ -25,7 +25,7 @@ const DrowsinessMode = () => {
     alertness: 85,
     eyeClosure: 0.15,
     yawnCount: 0,
-    eyesClosedDuration: 0  // NEW: Track duration in seconds
+    lowAlertnessDuration: 0  // Track low alertness (<60%) duration
   });
   
   // NEW: State for auto-SOS
@@ -38,7 +38,7 @@ const DrowsinessMode = () => {
   const captureCanvasRef = useRef(null); // Hidden canvas for capturing frames
   const wsRef = useRef(null); // WebSocket reference
   
-  const eyeClosureStartTimeRef = useRef(null);
+  const lowAlertnessStartTimeRef = useRef(null);
   const audioContextRef = useRef(null);
   const sirenOscillatorsRef = useRef([]);
 
@@ -140,21 +140,21 @@ const DrowsinessMode = () => {
 
     const { alertness, eye_closure, is_eyes_closed, is_yawning, landmarks } = data;
     
-    // Track eye closure duration locally for sound alert
-    let eyesClosedDuration = 0;
-    if (is_eyes_closed) {
-      if (!eyeClosureStartTimeRef.current) {
-        eyeClosureStartTimeRef.current = Date.now();
+    // Track low alertness (< 60%) duration locally for sound alert
+    let lowAlertnessDuration = 0;
+    if (alertness < 60) {
+      if (!lowAlertnessStartTimeRef.current) {
+        lowAlertnessStartTimeRef.current = Date.now();
       }
-      eyesClosedDuration = (Date.now() - eyeClosureStartTimeRef.current) / 1000;
+      lowAlertnessDuration = (Date.now() - lowAlertnessStartTimeRef.current) / 1000;
     } else {
-      eyeClosureStartTimeRef.current = null;
-      eyesClosedDuration = 0;
+      lowAlertnessStartTimeRef.current = null;
+      lowAlertnessDuration = 0;
     }
 
-    // Trigger siren if eyes closed > 3 seconds
-    if (eyesClosedDuration > 3 && !autoSOSTriggered) {
-      triggerDrowsinessAlert(alertness, eyesClosedDuration);
+    // Trigger siren if alertness < 60% > 3 seconds
+    if (lowAlertnessDuration > 3 && !autoSOSTriggered) {
+      triggerDrowsinessAlert(alertness, lowAlertnessDuration);
     }
 
     setRealTimeData(prev => ({
@@ -162,7 +162,7 @@ const DrowsinessMode = () => {
       alertness,
       eyeClosure: eye_closure,
       yawnCount: is_yawning ? prev.yawnCount + 1 : prev.yawnCount,
-      eyesClosedDuration: parseFloat(eyesClosedDuration.toFixed(2))
+      lowAlertnessDuration: parseFloat(lowAlertnessDuration.toFixed(2))
     }));
 
     // Draw landmarks overlay
@@ -186,8 +186,8 @@ const DrowsinessMode = () => {
       if (landmarks.left_eye) drawPoints(landmarks.left_eye);
       if (landmarks.right_eye) drawPoints(landmarks.right_eye);
       
-      // Draw warning box if eyes closed
-      if (is_eyes_closed && eyesClosedDuration > 1) {
+      // Draw warning box if alertness is dangerously low
+      if (alertness < 60 && lowAlertnessDuration > 1) {
         ctx.strokeStyle = '#FF3366';
         ctx.lineWidth = 6;
         ctx.strokeRect(0, 0, w, h);
@@ -254,7 +254,7 @@ const DrowsinessMode = () => {
   };
 
   // NEW: Trigger drowsiness alert with sound and auto-SOS
-  const triggerDrowsinessAlert = async (alertness, eyesClosedDuration) => {
+  const triggerDrowsinessAlert = async (alertness, lowAlertnessDuration) => {
     setAutoSOSTriggered(true);
     setSosAlertActive(true);
     setIsSirenPlaying(true);
@@ -274,7 +274,7 @@ const DrowsinessMode = () => {
           const { latitude, longitude } = position.coords;
           const mapsLink = generateMapsLink(latitude, longitude);
           
-          const sosMessageForBackend = `🚨 DROWSINESS EMERGENCY ALERT\n\nDriver's eyes closed for ${eyesClosedDuration.toFixed(1)} seconds\nAlertness Level: ${alertness}%\nAuto-triggered emergency alert - IMMEDIATE ACTION REQUIRED`;
+          const sosMessageForBackend = `🚨 DROWSINESS EMERGENCY ALERT\n\nDriver alertness fell below 60% for ${lowAlertnessDuration.toFixed(1)} seconds\nAlertness Level: ${alertness}%\nAuto-triggered emergency alert - IMMEDIATE ACTION REQUIRED`;
           
           const sosPayload = {
             type: 'drowsiness-emergency',
@@ -525,8 +525,8 @@ const DrowsinessMode = () => {
             <div className="bg-white/10 rounded-lg p-4 mb-6 border border-white/20">
               <p className="text-white text-center font-bold mb-2 uppercase tracking-widest">Drowsiness Signal Detected</p>
               <div className="flex flex-col items-center gap-1">
-                <p className="text-white/90 text-[10px]">EYES CLOSED: <span className="text-white font-bold">{realTimeData.eyesClosedDuration?.toFixed(1)}s</span></p>
-                <ProgressBar value={realTimeData.eyesClosedDuration * 33.3} className="h-1.5 w-32 bg-white/20" />
+                <p className="text-white/90 text-[10px]">LOW ALERTNESS (<60%): <span className="text-white font-bold">{realTimeData.lowAlertnessDuration?.toFixed(1)}s</span></p>
+                <ProgressBar value={realTimeData.lowAlertnessDuration * 33.3} className="h-1.5 w-32 bg-white/20" />
               </div>
             </div>
 

@@ -13,7 +13,7 @@ class VisionService:
         try:
             self.mp_face_mesh = mp.solutions.face_mesh
             self.face_mesh = self.mp_face_mesh.FaceMesh(
-                max_num_faces=1,
+                max_num_faces=5,
                 refine_landmarks=True,
                 min_detection_confidence=0.5,
                 min_tracking_confidence=0.5
@@ -73,8 +73,21 @@ class VisionService:
             if not results.multi_face_landmarks:
                 return {"detected": False}
 
-            face_landmarks = results.multi_face_landmarks[0]
-            landmarks = [(lm.x * w, lm.y * h) for lm in face_landmarks.landmark]
+            # Find the largest face to ensure we focus on the driver in front
+            largest_face_landmarks = None
+            max_area = 0
+
+            for face_landmarks in results.multi_face_landmarks:
+                lms = [(lm.x * w, lm.y * h) for lm in face_landmarks.landmark]
+                xs = [p[0] for p in lms]
+                ys = [p[1] for p in lms]
+                area = (max(xs) - min(xs)) * (max(ys) - min(ys))
+                
+                if area > max_area:
+                    max_area = area
+                    largest_face_landmarks = lms
+
+            landmarks = largest_face_landmarks
 
             # Extract specific regions
             left_eye_lms = [landmarks[i] for i in self.LEFT_EYE]
