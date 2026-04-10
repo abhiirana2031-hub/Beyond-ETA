@@ -271,34 +271,37 @@ const DrowsinessMode = () => {
     try {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(async (position) => {
-          const { latitude, longitude } = position.coords;
-          const mapsLink = generateMapsLink(latitude, longitude);
-          
-          const sosMessageForBackend = `🚨 DROWSINESS EMERGENCY ALERT\n\nDriver alertness fell below 60% for ${lowAlertnessDuration.toFixed(1)} seconds\nAlertness Level: ${alertness}%\nAuto-triggered emergency alert - IMMEDIATE ACTION REQUIRED`;
-          
-          const sosPayload = {
-            type: 'drowsiness-emergency',
-            location: { lat: latitude, lng: longitude },
-            message: sosMessageForBackend,
-            active: true
-          };
-          
-          console.log('📍 Auto-SOS Sending:', sosPayload);
-          
-          // Send to backend
-          await axios.post(`${API}/emergency/alert`, sosPayload, {
-            timeout: 5000,
-            headers: { 'Content-Type': 'application/json' }
-          });
-          
-          // Automated Multi-Channel Alert: Background notification already processed by backend.
-          console.log('✅ Auto-SOS Multi-Channel Sent Successfully (Direct)');
-          
-          console.log('✅ Auto-SOS Multi-Channel Sent Successfully');
+          try {
+            const { latitude, longitude } = position.coords;
+            const mapsLink = generateMapsLink(latitude, longitude);
+            
+            const sosMessageForBackend = `🚨 DROWSINESS EMERGENCY ALERT\n\nDriver alertness fell below 60% for ${lowAlertnessDuration.toFixed(1)} seconds\nAlertness Level: ${alertness}%\nAuto-triggered emergency alert - IMMEDIATE ACTION REQUIRED`;
+            
+            const sosPayload = {
+              type: 'drowsiness-emergency',
+              location: { lat: latitude, lng: longitude },
+              message: sosMessageForBackend,
+              active: true
+            };
+            
+            console.log('📍 Auto-SOS Sending:', sosPayload);
+            
+            // Send to backend
+            await axios.post(`${API}/emergency/alert`, sosPayload, {
+              timeout: 10000,
+              headers: { 'Content-Type': 'application/json' }
+            });
+            
+            // Automated Multi-Channel Alert: Background notification already processed by backend.
+            console.log('✅ Auto-SOS Multi-Channel Sent Successfully (Direct)');
+            
+          } catch (backendError) {
+            console.error('❌ Backend SOS Error:', backendError.message);
+          }
         });
       }
     } catch (error) {
-      console.error('❌ Error sending auto-SOS:', error);
+      console.error('❌ Error initializing auto-SOS:', error);
     }
   };
 
