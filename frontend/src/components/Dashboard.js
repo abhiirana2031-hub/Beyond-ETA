@@ -860,60 +860,88 @@ const Dashboard = () => {
                     <div className="text-[8px] font-bold text-[#00E5FF] px-2 py-0.5 bg-[#00E5FF]/10 rounded-full uppercase">Optimized</div>
                   </div>
                   <div className="space-y-2">
-                    {routes.map((route) => (
-                      <button
-                        key={route.id}
-                        onClick={() => {
-                          setSelectedRoute(route);
-                          setSelectedRouteId(route.id);
-                          
-                          // Focus map on selected route
-                          if (mapRef.current) {
-                            const lngs = route.coordinates.map(c => c[0]);
-                            const lats = route.coordinates.map(c => c[1]);
-                            mapRef.current.fitBounds([
-                              [Math.min(...lngs), Math.min(...lats)],
-                              [Math.max(...lngs), Math.max(...lats)]
-                            ], {
-                              padding: 50,
-                              pitch: 45,
-                              duration: 1500
-                            });
-                          }
-                        }}
-                        className={`w-full p-4 rounded-sm border transition-all text-left relative overflow-hidden group ${
-                          selectedRouteId === route.id
-                            ? 'bg-white/5 border-white/30 shadow-md'
-                            : 'bg-[#121212] border-white/5 hover:border-white/10'
-                        }`}
-                      >
-                        {selectedRouteId === route.id && (
-                          <div className="absolute top-0 left-0 w-1 h-full bg-[#00E5FF]" />
-                        )}
-                        <div className="flex justify-between items-center mb-2">
-                          <div className="text-[11px] font-black text-white uppercase tracking-tight">{route.mode}</div>
-                          {route.metrics?.type === 'fastest' && <div className="text-[8px] font-bold text-white bg-[#00E676] px-1.5 py-0.5 rounded-sm">FASTEST</div>}
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex flex-col">
-                            <span className="text-[8px] uppercase font-bold text-[#71717A]">T</span>
-                            <span className="text-sm font-bold text-white telemetry-font">{route.duration}m</span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-[8px] uppercase font-bold text-[#71717A]">P</span>
-                            <span className={`text-sm font-bold telemetry-font ${route.pothole_count < 5 ? 'text-[#00E676]' : 'text-[#FFB020]'}`}>
-                              {route.pothole_count}
-                            </span>
-                          </div>
-                          {route.metrics?.pollution_reduction && (
-                            <div className="flex flex-col ml-auto">
-                              <span className="text-[8px] uppercase font-bold text-[#71717A]">AQI</span>
-                              <span className="text-sm font-bold text-[#00E5FF] telemetry-font">{Math.round(route.aqi_average)}</span>
+                    {routes.map((route, idx) => {
+                      const isLocked = idx === 2 && activeMode !== 'safe_route';
+
+                      if (isLocked) {
+                        return (
+                          <button
+                            key={route.id || `locked-${idx}`}
+                            onClick={() => setActiveMode('safe_route')}
+                            className="w-full p-4 rounded-sm border border-[#00E676]/30 bg-[#121212]/80 transition-all text-left relative overflow-hidden group hover:border-[#00E676]/60 hover:bg-[#00E676]/10"
+                          >
+                            <div className="absolute top-0 right-0 px-2 py-0.5 bg-[#00E676]/20 text-[#00E676] text-[8px] font-black uppercase tracking-widest rounded-bl-sm">
+                              SafeRoute Premium
                             </div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Lock size={14} weight="fill" className="text-[#00E676] mb-0.5" />
+                                <div className="text-[11px] font-black text-[#A1A1AA] uppercase tracking-tight line-through opacity-70">AI OPTIMAL ROUTE</div>
+                              </div>
+                            </div>
+                            <div className="text-[9px] text-[#A1A1AA] flex items-center gap-2 mt-2">
+                              <ShieldCheck size={14} className="text-[#00E676]" />
+                              Tap to unlock proprietary safety metrics
+                            </div>
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <button
+                          key={route.id}
+                          onClick={() => {
+                            setSelectedRoute(route);
+                            setSelectedRouteId(route.id);
+                            
+                            // Focus map on selected route
+                            if (mapRef.current) {
+                              const lngs = route.coordinates.map(c => c[0]);
+                              const lats = route.coordinates.map(c => c[1]);
+                              mapRef.current.fitBounds([
+                                [Math.min(...lngs), Math.min(...lats)],
+                                [Math.max(...lngs), Math.max(...lats)]
+                              ], {
+                                padding: 50,
+                                pitch: 45,
+                                duration: 1500
+                              });
+                            }
+                          }}
+                          className={`w-full p-4 rounded-sm border transition-all text-left relative overflow-hidden group ${
+                            selectedRouteId === route.id
+                              ? 'bg-white/5 border-white/30 shadow-md'
+                              : 'bg-[#121212] border-white/5 hover:border-white/10'
+                          }`}
+                        >
+                          {selectedRouteId === route.id && (
+                            <div className="absolute top-0 left-0 w-1 h-full bg-[#00E5FF]" />
                           )}
-                        </div>
-                      </button>
-                    ))}
+                          <div className="flex justify-between items-center mb-2">
+                            <div className="text-[11px] font-black text-white uppercase tracking-tight">{route.mode}</div>
+                            {route.metrics?.type === 'fastest' && <div className="text-[8px] font-bold text-white bg-[#00E676] px-1.5 py-0.5 rounded-sm">FASTEST</div>}
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="flex flex-col">
+                              <span className="text-[8px] uppercase font-bold text-[#71717A]">T</span>
+                              <span className="text-sm font-bold text-white telemetry-font">{route.duration}m</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[8px] uppercase font-bold text-[#71717A]">P</span>
+                              <span className={`text-sm font-bold telemetry-font ${route.pothole_count < 5 ? 'text-[#00E676]' : 'text-[#FFB020]'}`}>
+                                {route.pothole_count}
+                              </span>
+                            </div>
+                            {route.metrics?.pollution_reduction && (
+                              <div className="flex flex-col ml-auto">
+                                <span className="text-[8px] uppercase font-bold text-[#71717A]">AQI</span>
+                                <span className="text-sm font-bold text-[#00E5FF] telemetry-font">{Math.round(route.aqi_average)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </section>
               )}
